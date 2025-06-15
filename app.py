@@ -129,7 +129,7 @@ class ProcessTab(QWidget):
                 image_pairs = get_image_pairs(full_path)
                 all_rows = []
                 for i, (front, back) in enumerate(image_pairs):
-                    processed = process_image_set(front, back, full_path, settings["background_color"])
+                    processed = process_image_set(front, back, full_path, i, settings["background_color"])
                     if not processed:
                         self.log_msg(f"Image processing failed for {front}")
                         continue

@@ -21,7 +21,12 @@ pip install -r requirements.txt
 ```bash
 cp config/settings.template.json config/settings.json
 ```
-Edit `config/settings.json` with your AWS credentials, OpenAI API key, and other settings.
+Edit `config/settings.json` with your:
+- AWS credentials
+- OpenAI API key
+- Default price
+- Branding image path
+- Other settings
 
 ## Usage
 
@@ -37,6 +42,8 @@ python app.py
 - Generate eBay-compatible CSV listings
 - AI-powered metadata extraction
 - Custom HTML description templates
+- Configurable default price
+- Custom branding image support
 
 ## Requirements
 
@@ -44,7 +51,5 @@ python app.py
 - AWS S3 account
 - OpenAI API key
 - Required Python packages (see requirements.txt)
-
-## License
 
 [Your chosen license] 

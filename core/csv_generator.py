@@ -14,11 +14,11 @@ def fill_row(headers: list[str], metadata: dict, front_url: str, back_url: str, 
     row['Title'] = metadata.get('Title', '')
     future_date = datetime.now() + timedelta(days=1)
     row['Schedule Time'] = future_date.strftime("%Y-%m-%d") + " 18:00:00"
-    row['Item photo URL'] = f"{front_url}|{back_url}|{combined_url}|https://pcc-ebay-photos.s3.us-east-1.amazonaws.com/PCC-banner.png"
+    row['Item photo URL'] = f"{front_url}|{back_url}|{combined_url}|{settings.get('branding_image', '')}"
     row['Category ID'] = "262042"
     row['Condition ID'] = "3000-Used"
     row['Category name'] = '/Collectibles/Postcards & Supplies/Postcards/Topographical Postcards'
-    row['Start price'] = "8.99"
+    row['Start price'] = settings.get('price', '')
     row['Quantity'] = 1
     row['Format'] = "FixedPrice"
     row['Duration'] = "GTC"

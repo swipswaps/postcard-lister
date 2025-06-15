@@ -27,6 +27,9 @@ class SettingsTab(QWidget):
         self.bg_color = QLineEdit(); self.shipping_policy = QLineEdit()
         self.return_policy = QLineEdit(); self.payment_policy = QLineEdit()
         self.zip_code = QLineEdit()
+        self.price = QLineEdit(); self.price.setPlaceholderText("e.g. 9.99")
+        self.branding_image = QLineEdit(); self.branding_image.setPlaceholderText("Path to branding image")
+        self.branding_browse_btn = QPushButton("Browse Image"); self.branding_browse_btn.clicked.connect(self.browse_branding_image)
         self.input_dir = QLineEdit(); self.input_dir.setPlaceholderText("Path to postcard folders")
         self.browse_btn = QPushButton("Browse"); self.browse_btn.clicked.connect(self.browse_folder)
         self.custom_html = QTextEdit()
@@ -40,6 +43,9 @@ class SettingsTab(QWidget):
         self.form.addRow("OpenAI API Key:", self.openai_key)
         self.form.addRow("Background Color:", self.bg_color)
         self.form.addRow("Zip Code (Plus 4):", self.zip_code)
+        self.form.addRow("Price:", self.price)
+        self.form.addRow("Branding Image:", self.branding_image)
+        self.form.addRow("", self.branding_browse_btn)
         self.form.addRow("Shipping Policy Name:", self.shipping_policy)
         self.form.addRow("Return Policy Name:", self.return_policy)
         self.form.addRow("Payment Policy Name:", self.payment_policy)
@@ -58,6 +64,12 @@ class SettingsTab(QWidget):
         if folder:
             self.input_dir.setText(folder)
 
+    def browse_branding_image(self):
+        file, _ = QFileDialog.getOpenFileName(self, "Select Branding Image", "", 
+                                            "Image Files (*.png *.jpg *.jpeg *.gif *.bmp)")
+        if file:
+            self.branding_image.setText(file)
+
     def load_settings(self):
         data = load_settings(SETTINGS_PATH)
         self.aws_key.setText(data.get("aws_access_key", ""))
@@ -73,6 +85,8 @@ class SettingsTab(QWidget):
         self.aws_region.setText(data.get("aws_region", "us-east-1"))
         self.openai_key.setText(data.get("openai_api_key", ""))
         self.zip_code.setText(data.get("zip_code", ""))
+        self.price.setText(data.get("price", ""))
+        self.branding_image.setText(data.get("branding_image", ""))
 
     def save_settings(self):
         os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
@@ -90,6 +104,8 @@ class SettingsTab(QWidget):
             "aws_region": self.aws_region.text(),
             "openai_api_key": self.openai_key.text(),
             "zip_code": self.zip_code.text(),
+            "price": self.price.text(),
+            "branding_image": self.branding_image.text(),
         }
         save_settings(SETTINGS_PATH, data)
         QMessageBox.information(self, "Settings", "Settings saved successfully.")

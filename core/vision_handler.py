@@ -50,7 +50,7 @@ def get_postcard_metadata(combined_img_path: str, api_key: str) -> dict:
             f"{', '.join(era_list)}\n\n",
             "For 'Title', please provide an eBay search engine optimized title to help the listing rank higher while accurately describing it. The title must be 80 characters in length maximum and should always include the word 'Postcard'. Use as many of those 80 characters as possible by using relevant keywords such as the subject, theme, city, state, and other terms collectors may be searching for. Do not repeat keywords in the title. Aim for a title that is at least 70 characters long but the closer to 80 the better. If you cannot fit 80 characters, do not exceed that limit.",
             "For 'Description', please provide a detailed description of the postcard. This should be a concise summary of the image, including the subject, theme, city, state, and other details. Use HTML to format the description into a paragraph (or paragraphs if necessary) for the eBay description.",
-            "For 'Posted', choose either 'Posted' or 'Unposted'.\n"
+            "For 'Posted', choose either 'Posted' or 'Unposted'. If a postcard has a stamp on it and/or writing, it is Posted. If it is blank, it is Unposted. \n"
             "If there are people in the image you do NOT have to personally identify them. Just provide the required data."
         )
 

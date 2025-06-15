@@ -1,6 +1,8 @@
 # Postcard Lister
 
-A Python application for processing and listing postcards on eBay.
+A Python application for processing and listing postcards on eBay. For a guide on usage, view this YouTube video:
+
+If you would like to hire me for 1 on 1 help with setup and usage, please contact me at support@paulcarl.com
 
 ## Setup
 

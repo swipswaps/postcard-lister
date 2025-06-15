@@ -54,4 +54,4 @@ python app.py
 - OpenAI API key
 - Required Python packages (see requirements.txt)
 
-[Your chosen license] 
+GNU GENERAL PUBLIC LICENSE

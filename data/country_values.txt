@@ -1,0 +1,111 @@
+United States
+England
+Wales
+Scotland
+Northern Ireland
+Ireland
+Germany
+Austria
+Switzerland
+Australia
+Algeria
+Andorra
+Argentina
+Bahrain
+Barbados
+Belgium
+Belize
+Bosnia Herzegovina
+Brazil
+British Crown Dependencies
+British Overseas Territory
+Bulgaria
+Canada
+Ceylon/Sri Lanka
+Chile
+China
+Colombia
+Costa Rica
+Croatia
+Cuba
+Cyprus
+Czechoslovakia
+Czech Republic
+Denmark
+Ecuador
+Egypt
+El Salvador
+Estonia
+Ethiopia
+Finland
+France
+GDR
+Ghana
+Greece
+Guatemala
+Haiti
+Honduras
+Hong Kong
+Hungary
+Iceland
+India
+Iran
+Iraq
+Israel
+Italy
+Japan
+Jordan
+Kenya
+Kuwait
+Laois
+Latvia
+Lebanon
+Liechtenstein
+Lithuania
+Luxembourg
+Macedonia
+Malta
+Mexico
+Monaco
+Montenegro
+Morocco
+Netherlands
+New Zealand
+Nicaragua
+Nigeria
+Norway
+Not Available
+Oman
+Palestine
+Panama
+Peru
+Philippines
+Poland
+Portugal
+Republic of Congo
+Romania
+Russia
+San Marino
+Saudi Arabia
+Senegal
+Serbia
+Sierra Leone
+Singapore
+Slovakia
+Slovenia
+South Africa
+South Korea
+Soviet Union
+Spain
+Sudan
+Sweden
+Syria
+Tunisia
+Turkey
+Ukraine
+United Arab Emirates
+Uruguay
+Vatican
+Venezuela
+Yemen
+Yugoslavia

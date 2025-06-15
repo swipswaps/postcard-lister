@@ -1,0 +1,22 @@
+# Ignore personal settings
+config/settings.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+
+# Project specific
+output/
+*.csv
+
+# Logs
+*.log 

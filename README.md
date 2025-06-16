@@ -8,7 +8,7 @@ If you would like to hire me for 1 on 1 help with setup and usage, please contac
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/postcard-lister.git
+git clone https://github.com/paulcarl/postcard-lister.git
 cd postcard-lister
 ```
 

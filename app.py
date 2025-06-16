@@ -44,13 +44,13 @@ class SettingsTab(QWidget):
         self.form.addRow("Background Color:", self.bg_color)
         self.form.addRow("Zip Code (Plus 4):", self.zip_code)
         self.form.addRow("Price:", self.price)
-        self.form.addRow("Branding Image:", self.branding_image)
+        self.form.addRow("Branding Image URL:", self.branding_image)
         self.form.addRow("", self.branding_browse_btn)
         self.form.addRow("Shipping Policy Name:", self.shipping_policy)
         self.form.addRow("Return Policy Name:", self.return_policy)
         self.form.addRow("Payment Policy Name:", self.payment_policy)
+        self.form.addRow("Postcard Store Category ID:", self.store_category_id)
         self.form.addRow("Input Directory:", self.input_dir)
-        self.form.addRow("", self.browse_btn)
         self.form.addRow(QLabel("Custom HTML Description Template:"))
         self.form.addRow(self.custom_html)
 
@@ -87,6 +87,7 @@ class SettingsTab(QWidget):
         self.zip_code.setText(data.get("zip_code", ""))
         self.price.setText(data.get("price", ""))
         self.branding_image.setText(data.get("branding_image", ""))
+        self.store_category_id.setText(data.get("store_category_id", ""))
 
     def save_settings(self):
         os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
@@ -106,6 +107,7 @@ class SettingsTab(QWidget):
             "zip_code": self.zip_code.text(),
             "price": self.price.text(),
             "branding_image": self.branding_image.text(),
+            "store_category_id": self.store_category_id.text(),
         }
         save_settings(SETTINGS_PATH, data)
         QMessageBox.information(self, "Settings", "Settings saved successfully.")

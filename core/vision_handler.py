@@ -44,7 +44,7 @@ def get_postcard_metadata(combined_img_path: str, api_key: str) -> dict:
             f"{', '.join(subject_list)}\n\n"
             "For 'Theme', choose the closest match from this list, if any:\n"
             f"{', '.join(theme_list)}\n\n"
-            "For 'Type', choose the closest match from this list, if any:\n"
+            "For 'Type', most postcards will be \"Printed (Lithograph)\". The \"Real Photo (RPPC)\" should be obvious because there will be no halftone dots in the minute details of the image. Given that information, pleasechoose the closest match from this list:\n"
             f"{', '.join(type_list)}\n\n"
             "For 'Era', choose the closest match from this list, if any:\n"
             f"{', '.join(era_list)}\n\n",

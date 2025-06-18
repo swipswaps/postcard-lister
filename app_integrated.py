@@ -105,6 +105,8 @@ class GitHubUploadWorker(QThread):
 
     # Signals for communicating with GUI
     progress_updated = pyqtSignal(str)  # status message
+    verbatim_output = pyqtSignal(str)   # verbatim system output
+    network_status = pyqtSignal(str)    # network activity status
     upload_complete = pyqtSignal(bool, str)  # success, message
 
     def __init__(self, commit_message):
@@ -197,11 +199,20 @@ git status --porcelain >&3 2>&3 || echo "Final git status failed" >&3
                             if line:
                                 line = line.rstrip()
                                 output_queue.put(line)
-                                # Emit immediately for real-time display
-                                self.progress_updated.emit(f"{prefix} {line}")
+                                # Emit both verbatim and formatted output
+                                formatted_line = f"{prefix} {line}"
+                                self.verbatim_output.emit(formatted_line)
+                                self.progress_updated.emit(formatted_line)
+
+                                # Check for network-related messages
+                                if any(keyword in line.lower() for keyword in
+                                      ['pushing', 'github', 'remote', 'network', 'connection', 'https']):
+                                    self.network_status.emit(f"🌐 Network: {line}")
                         pipe.close()
                     except Exception as e:
-                        self.progress_updated.emit(f"⚠️ Error reading {prefix}: {e}")
+                        error_msg = f"⚠️ Error reading {prefix}: {e}"
+                        self.progress_updated.emit(error_msg)
+                        self.verbatim_output.emit(error_msg)
 
                 # Start process with separate pipes
                 process = subprocess.Popen(
@@ -229,13 +240,63 @@ git status --porcelain >&3 2>&3 || echo "Final git status failed" >&3
                 stdout_thread.start()
                 stderr_thread.start()
 
-                # Wait for process to complete
+                # Wait for process to complete with status updates
                 self.progress_updated.emit("⏳ Waiting for upload script to complete...")
-                process.wait()
+
+                # Monitor process with timeout and status updates
+                timeout_seconds = 120
+                poll_interval = 2
+                elapsed = 0
+
+                while process.poll() is None and elapsed < timeout_seconds:
+                    time.sleep(poll_interval)
+                    elapsed += poll_interval
+
+                    # Show network activity status
+                    if elapsed % 10 == 0:  # Every 10 seconds
+                        self.progress_updated.emit(f"🌐 Network activity in progress... ({elapsed}s elapsed)")
+                        self.network_status.emit(f"📡 Monitoring network operations... ({elapsed}s)")
+
+                        # Check if we can see any network connections
+                        try:
+                            import subprocess as sp
+                            netstat_result = sp.run(['netstat', '-tn'], capture_output=True, text=True, timeout=2)
+                            if netstat_result.returncode == 0:
+                                github_connections = [line for line in netstat_result.stdout.split('\n')
+                                                    if 'github.com' in line or ':443' in line or ':22' in line]
+                                if github_connections:
+                                    self.network_status.emit(f"🔗 Active GitHub connections: {len(github_connections)}")
+                                    for conn in github_connections[:3]:  # Show first 3 connections
+                                        self.verbatim_output.emit(f"🔗 NETSTAT: {conn.strip()}")
+                                else:
+                                    self.network_status.emit("📡 No active GitHub connections visible")
+                        except Exception as e:
+                            self.network_status.emit(f"📡 Network monitoring error: {e}")
+
+                        # Check process status
+                        try:
+                            if hasattr(process, 'pid'):
+                                ps_result = sp.run(['ps', '-p', str(process.pid), '-o', 'pid,ppid,state,comm'],
+                                                 capture_output=True, text=True, timeout=2)
+                                if ps_result.returncode == 0:
+                                    self.verbatim_output.emit(f"🔍 PROCESS: {ps_result.stdout.strip()}")
+                        except:
+                            pass
+
+                if process.poll() is None:
+                    self.progress_updated.emit("⏰ Process timeout - terminating...")
+                    process.terminate()
+                    time.sleep(2)
+                    if process.poll() is None:
+                        process.kill()
+                    self.progress_updated.emit("🛑 Process terminated due to timeout")
+                else:
+                    self.progress_updated.emit(f"✅ Process completed with exit code: {process.returncode}")
 
                 # Wait for reader threads to finish
-                stdout_thread.join(timeout=5)
-                stderr_thread.join(timeout=5)
+                self.progress_updated.emit("📖 Collecting final output...")
+                stdout_thread.join(timeout=10)
+                stderr_thread.join(timeout=10)
 
                 # Collect all output from queues
                 stdout_lines = []
@@ -623,15 +684,36 @@ class IntegratedPostcardLister(QWidget):
         process_layout.addWidget(self.progress_bar)
         process_group.setLayout(process_layout)
 
-        # Output log
+        # Output log with verbatim capture
         log_group = QGroupBox("Processing Log")
         log_layout = QVBoxLayout()
 
+        # Main processing log
         self.process_log = QTextEdit()
         self.process_log.setReadOnly(True)
-        self.process_log.setMaximumHeight(200)
+        self.process_log.setMaximumHeight(150)
 
+        # Verbatim system output log
+        verbatim_label = QLabel("Verbatim System Output (Real-time):")
+        verbatim_label.setStyleSheet("font-weight: bold; color: #2E8B57;")
+
+        self.verbatim_log = QTextEdit()
+        self.verbatim_log.setReadOnly(True)
+        self.verbatim_log.setMaximumHeight(200)
+        self.verbatim_log.setStyleSheet("""
+            QTextEdit {
+                background-color: #1e1e1e;
+                color: #00ff00;
+                font-family: 'Courier New', monospace;
+                font-size: 10px;
+                border: 1px solid #555;
+            }
+        """)
+
+        log_layout.addWidget(QLabel("Application Messages:"))
         log_layout.addWidget(self.process_log)
+        log_layout.addWidget(verbatim_label)
+        log_layout.addWidget(self.verbatim_log)
         log_group.setLayout(log_layout)
 
         # Add all groups to main layout
@@ -1017,6 +1099,8 @@ class IntegratedPostcardLister(QWidget):
             # Start upload worker thread
             self.upload_worker = GitHubUploadWorker(commit_message)
             self.upload_worker.progress_updated.connect(self.log_message)
+            self.upload_worker.verbatim_output.connect(self.log_verbatim)
+            self.upload_worker.network_status.connect(self.log_message)
             self.upload_worker.upload_complete.connect(self.upload_finished)
             self.upload_worker.start()
 
@@ -1071,6 +1155,26 @@ class IntegratedPostcardLister(QWidget):
     def log_message(self, message):
         """Add message to process log"""
         self.process_log.append(message)
+        print(message)  # Also print to console
+
+    def log_verbatim(self, message):
+        """Add verbatim system message to dedicated log"""
+        if hasattr(self, 'verbatim_log'):
+            # Strip our prefixes for cleaner verbatim display
+            clean_message = message
+            if message.startswith("📤 STDOUT: "):
+                clean_message = message[11:]  # Remove "📤 STDOUT: "
+            elif message.startswith("🚨 STDERR: "):
+                clean_message = message[11:]  # Remove "🚨 STDERR: "
+
+            self.verbatim_log.append(clean_message)
+
+            # Also log to main log for completeness
+            self.process_log.append(message)
+        else:
+            # Fallback to main log if verbatim log not available
+            self.process_log.append(message)
+
         print(message)  # Also print to console
 
 ################################################################################

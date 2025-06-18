@@ -41,6 +41,25 @@ if [[ -z "${GH_TOKEN:-}" ]]; then
     exit 1
 fi
 
+# Check token format and provide guidance
+if [[ "$GH_TOKEN" =~ ^ghp_ ]]; then
+    log_info "Using Personal Access Token (classic)"
+elif [[ "$GH_TOKEN" =~ ^github_pat_ ]]; then
+    log_info "Using Fine-grained Personal Access Token"
+elif [[ "$GH_TOKEN" =~ ^ghs_ ]]; then
+    log_info "Using GitHub App token"
+else
+    log_warn "Token format not recognized. Expected format: ghp_... or github_pat_..."
+    log_info "Token length: ${#GH_TOKEN} characters"
+    log_info "Please ensure you're using a valid GitHub Personal Access Token"
+    echo -n "Continue anyway? (y/N): "
+    read -r response
+    if [[ ! "$response" =~ ^[Yy]$ ]]; then
+        log_info "Aborted. Please check your token in .env file"
+        exit 1
+    fi
+fi
+
 # Get commit message from argument or use default
 COMMIT_MSG="${1:-Auto-commit $(date '+%Y-%m-%d %H:%M:%S')}"
 
@@ -85,10 +104,33 @@ fi
 
 # Push to remote
 log_info "Pushing to GitHub..."
-if git push origin "$CURRENT_BRANCH"; then
+log_info "Using token: ${GH_TOKEN:0:10}..."
+
+# Try push with detailed error output
+PUSH_OUTPUT=$(git push origin "$CURRENT_BRANCH" 2>&1)
+PUSH_EXIT=$?
+
+if [[ $PUSH_EXIT -eq 0 ]]; then
     log_success "Successfully pushed to GitHub!"
 else
-    log_error "Push failed"
+    log_error "Push failed with exit code: $PUSH_EXIT"
+    log_error "Git output:"
+    echo "$PUSH_OUTPUT"
+
+    # Check for common issues
+    if echo "$PUSH_OUTPUT" | grep -q "Authentication failed"; then
+        log_error "Authentication failed. Possible issues:"
+        log_error "1. Token is expired or invalid"
+        log_error "2. Token doesn't have 'repo' permissions"
+        log_error "3. Repository doesn't exist or you don't have access"
+        log_info "Please check your token at: https://github.com/settings/tokens"
+    elif echo "$PUSH_OUTPUT" | grep -q "remote: Repository not found"; then
+        log_error "Repository not found. Please check:"
+        log_error "1. Repository name is correct"
+        log_error "2. You have access to the repository"
+        log_error "3. Repository exists at: $CLEAN_URL"
+    fi
+
     # Clean up remote URL
     git remote set-url origin "$CLEAN_URL"
     exit 1

@@ -1,27 +1,28 @@
 #!/usr/bin/env python3
 ################################################################################
 # 📦 prf_upload_to_github.py — PRF‑COMPLIANT GITHUB SYNC TOOL
-# WHAT: Full GitHub automation script with .env fallback, token verification, auto-remote correction, and commit+push enforcement
-# WHY: Prevents GitHub push failure due to missing tokens, dirty states, or unconfigured remotes
-# FAIL: Fails cleanly with readable diagnostics if token, repo, or network is broken
-# UX: All steps output clear emoji-annotated feedback for traceability
-# DEBUG: Verbose subprocess error handling with visible exit codes
+# WHAT: GitHub uploader with token auth, remote rewrite, commit enforcement, and push diagnostics
+# WHY: Removes auth failures, silent HTTPS prompts, and broken remotes
+# FAIL: Aborts on token absence, git error, or push rejection
+# UX: Fully terminal-readable, emoji-tagged, self-healing Git push pipeline
+# DEBUG: Subprocess visibility and exit traceability
 ################################################################################
 
 import os
 import sys
 import subprocess
 from pathlib import Path
+from datetime import datetime
 from dotenv import load_dotenv
 
 # ─── PRF‑UPLOAD00: AUTO‑LOAD GH_TOKEN FROM .ENV ──────────────────────────────
 def autoload_dotenv_token():
     """
-    WHAT: Loads GH_TOKEN from .env if not present
-    WHY: Prevents failures caused by unset environment variables
-    FAIL: Aborts if GH_TOKEN is not loaded successfully
-    UX: Prints token source, exit if missing
-    DEBUG: Checks env var state after .env load
+    WHAT: Loads GH_TOKEN from .env if not exported
+    WHY: Allows automatic token detection without manual export
+    FAIL: Aborts if GH_TOKEN is missing after fallback
+    UX: Colored, visible notices with exit cause
+    DEBUG: Prints fallback and .env status
     """
     env_path = Path(".env")
     if not os.environ.get("GH_TOKEN"):
@@ -29,116 +30,116 @@ def autoload_dotenv_token():
             print("[INFO] 🧬 Loading GH_TOKEN from .env...")
             load_dotenv(dotenv_path=env_path)
             if not os.environ.get("GH_TOKEN"):
-                print("[FAIL] ❌ .env loaded, but GH_TOKEN still missing.")
+                print("[FAIL] ❌ .env loaded but GH_TOKEN is still missing.")
                 sys.exit(1)
-            print("[PASS] ✅ GH_TOKEN loaded successfully from .env.")
+            print("[PASS] ✅ GH_TOKEN loaded successfully.")
         else:
-            print("[FAIL] ❌ .env file not found, and GH_TOKEN not exported.")
+            print("[FAIL] ❌ GH_TOKEN not found in environment or .env file.")
             sys.exit(1)
     else:
-        print("[SKIP] ✅ GH_TOKEN already present in environment.")
+        print("[SKIP] ✅ GH_TOKEN already present.")
 
 # ─── PRF‑UPLOAD01: VERIFY GIT REPO ────────────────────────────────────────────
 def assert_git_repo():
     """
-    WHAT: Ensures current directory is a Git repository
-    WHY: Git operations require .git metadata
-    FAIL: Aborts if .git not present
-    UX: Prints helpful message if invalid
-    DEBUG: Checks for .git folder
+    WHAT: Ensures the script runs inside a Git repository
+    WHY: Prevents failures due to missing git metadata
+    FAIL: Hard exits if .git is missing
+    UX: Tells user how to initialize
+    DEBUG: Checks for .git directory
     """
     if not Path(".git").exists():
-        print("[FAIL] ❌ Current directory is not a Git repo.")
+        print("[FAIL] ❌ Current directory is not a Git repository.")
         sys.exit(1)
-    print("[PASS] ✅ Git repository verified.")
+    print("[PASS] ✅ Git repository confirmed.")
 
-# ─── PRF‑UPLOAD02: VERIFY GH_TOKEN ────────────────────────────────────────────
+# ─── PRF‑UPLOAD02: VALIDATE GH_TOKEN ─────────────────────────────────────────
 def assert_gh_token():
     """
-    WHAT: Checks that GH_TOKEN is set and not empty
-    WHY: GitHub requires PAT (token) authentication for HTTPS
-    FAIL: Push attempts silently fail or prompt unexpectedly
-    UX: Visible exit path and export hints
-    DEBUG: Pulls value from environment
+    WHAT: Checks presence and length of GH_TOKEN
+    WHY: GitHub HTTPS authentication requires PAT token
+    FAIL: Silent 403 error or interactive password prompt
+    UX: Prints explicit exit cause
+    DEBUG: Uses env var value
     """
     token = os.environ.get("GH_TOKEN", "").strip()
-    if not token:
-        print("[FAIL] ❌ GH_TOKEN not set.")
-        print("👉 Add to .env or export GH_TOKEN before running.")
+    if not token or len(token) < 20:
+        print("[FAIL] ❌ GH_TOKEN is missing or invalid.")
         sys.exit(1)
-    print("[PASS] ✅ GH_TOKEN is present and non-empty.")
+    print("[PASS] ✅ GH_TOKEN is valid.")
 
-# ─── PRF‑UPLOAD03: TOKENIZE ORIGIN REMOTE ─────────────────────────────────────
+# ─── PRF‑UPLOAD03: TOKENIZE GIT REMOTE ───────────────────────────────────────
 def configure_remote():
     """
-    WHAT: Configures Git remote with token-based URL
-    WHY: Prevents push prompt and 403 errors
-    FAIL: Fails if repo name or token missing
-    UX: Prints remote status
-    DEBUG: Shows changed or skipped remote config
+    WHAT: Sets HTTPS tokenized Git remote with PAT
+    WHY: Prevents interactive password prompt, ensures push auth works
+    FAIL: Broken or invalid remote URL blocks push
+    UX: Confirms added or modified URL
+    DEBUG: Shows current and new URLs
     """
     username = "swipswaps"
-    reponame = Path(".").resolve().name
+    reponame = Path().resolve().name
     token = os.environ["GH_TOKEN"]
     secure_url = f"https://{username}:{token}@github.com/{username}/{reponame}.git"
 
     try:
-        current_url = subprocess.check_output(["git", "remote", "get-url", "origin"], text=True).strip()
-        if "@" not in current_url:
+        current = subprocess.check_output(["git", "remote", "get-url", "origin"], text=True).strip()
+        if "@github.com" not in current:
             subprocess.run(["git", "remote", "set-url", "origin", secure_url], check=True)
-            print("[INFO] 🔁 Remote URL updated with token auth.")
+            print("[INFO] 🔄 Remote URL updated with token.")
         else:
-            print("[SKIP] ✅ Remote already tokenized.")
+            print("[SKIP] ✅ Remote URL already tokenized.")
     except subprocess.CalledProcessError:
         subprocess.run(["git", "remote", "add", "origin", secure_url], check=True)
-        print("[INFO] 🆕 Added tokenized 'origin' remote.")
+        print("[INFO] 🆕 Remote origin added.")
 
-# ─── PRF‑UPLOAD04: AUTO-COMMIT IF DIRTY ───────────────────────────────────────
+# ─── PRF‑UPLOAD04: AUTO‑COMMIT PENDING CHANGES ───────────────────────────────
 def commit_if_needed():
     """
-    WHAT: Auto-commits changes before push
-    WHY: Prevents push failures due to uncommitted work
-    FAIL: Git rejects push if repo is dirty
-    UX: Uses standard auto-message
-    DEBUG: Git status used for decision
+    WHAT: Adds and commits all untracked or modified files
+    WHY: Ensures push will succeed
+    FAIL: Dirty working tree blocks push if not committed
+    UX: Automatically adds a timestamp commit
+    DEBUG: Uses git porcelain output to detect changes
     """
     try:
-        status = subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
-        if status:
+        dirty = subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
+        if dirty:
             subprocess.run(["git", "add", "."], check=True)
-            subprocess.run(["git", "commit", "-m", "[AUTO] PRF sync commit"], check=True)
-            print("[INFO] 📝 Auto-committed local changes.")
+            tag = datetime.now().strftime("prf-auto-%Y%m%d-%H%M%S")
+            subprocess.run(["git", "commit", "-m", f"[AUTO] {tag}"], check=True)
+            print(f"[INFO] 📝 Auto-committed changes as '{tag}'")
         else:
-            print("[SKIP] ✅ No changes to commit.")
+            print("[SKIP] ✅ Working directory clean.")
     except subprocess.CalledProcessError as e:
-        print(f"[FAIL] ❌ Auto-commit failed: {e}")
+        print(f"[FAIL] ❌ Git auto-commit failed: {e}")
         sys.exit(1)
 
-# ─── PRF‑UPLOAD05: PUSH TO CURRENT BRANCH ─────────────────────────────────────
+# ─── PRF‑UPLOAD05: PUSH TO REMOTE ────────────────────────────────────────────
 def push_to_github():
     """
-    WHAT: Pushes committed changes to GitHub
-    WHY: Uploads local repo state to remote
-    FAIL: Push fails with auth, net, or tracking errors
-    UX: Branch shown in success or failure
-    DEBUG: Full subprocess error logged
+    WHAT: Pushes current branch to GitHub
+    WHY: Final step to sync changes to remote
+    FAIL: Token failure, branch mismatch, or network error halts push
+    UX: Success shows target branch, failure gives subprocess detail
+    DEBUG: Push command, current branch, subprocess return
     """
     try:
         branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
         subprocess.run(["git", "push", "-u", "origin", branch], check=True)
-        print(f"[PASS] 🚀 Push successful: origin/{branch}")
+        print(f"[PASS] 🚀 Push to origin/{branch} succeeded.")
     except subprocess.CalledProcessError as e:
-        print(f"[FAIL] ❌ Push failed with error: {e}")
+        print(f"[FAIL] ❌ Push failed: {e}")
         sys.exit(1)
 
-# ─── PRF‑UPLOAD06: MAIN ENTRYPOINT ────────────────────────────────────────────
+# ─── PRF‑UPLOAD06: MAIN ENTRYPOINT ───────────────────────────────────────────
 def main():
     """
-    WHAT: Orchestrates full upload process
-    WHY: Ensures all prerequisites validated and fixable
-    FAIL: Exits early if any step fails
-    UX: Consistent entry/exit messages
-    DEBUG: Steps are visibly sequenced
+    WHAT: Executes full GitHub push logic
+    WHY: Enforces orderly upload with PRF rules
+    FAIL: Any error in sequence aborts operation
+    UX: Printed diagnostics with emoji
+    DEBUG: Print each stage outcome
     """
     print("[PRF] 🛰 GitHub Upload Initiated")
     autoload_dotenv_token()
@@ -147,7 +148,7 @@ def main():
     configure_remote()
     commit_if_needed()
     push_to_github()
-    print("[PRF] ✅ GitHub Upload Completed")
+    print("[PRF] ✅ Upload pipeline complete.")
 
 if __name__ == "__main__":
     main()

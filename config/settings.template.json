@@ -1,15 +1,15 @@
 {
-    "aws_access_key": "YOUR_AWS_ACCESS_KEY",
-    "aws_secret_key": "YOUR_AWS_SECRET_KEY",
-    "s3_base_url": "",
-    "s3_bucket": "YOUR_S3_BUCKET",
+    "openai_api_key": "YOUR_OPENAI_API_KEY",
+    "github_token": "YOUR_GITHUB_TOKEN",
+    "github_owner": "YOUR_GITHUB_USERNAME",
+    "github_repo": "postcard-lister",
+    "use_multi_llm": true,
+    "use_github_catalog": true,
+    "default_product_type": "auto",
+    "store_category_id": "",
     "background_color": "#000000",
     "shipping_policy": "YOUR_SHIPPING_POLICY",
     "return_policy": "YOUR_RETURN_POLICY",
     "payment_policy": "YOUR_PAYMENT_POLICY",
-    "input_directory": "PATH_TO_INPUT_DIRECTORY",
-    "custom_html": "YOUR_CUSTOM_HTML",
-    "aws_region": "us-east-1",
-    "openai_api_key": "YOUR_OPENAI_API_KEY",
     "zip_code": "YOUR_ZIP_CODE"
-} 
+}

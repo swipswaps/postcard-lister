@@ -1,5 +1,5 @@
-PyQt5
-pandas
-Pillow
-boto3
-openai 
+PyQt5>=5.15.0
+pandas>=1.3.0
+Pillow>=8.0.0
+openai>=1.0.0
+requests>=2.25.0

@@ -297,17 +297,27 @@ class IntegratedPostcardLister(QWidget):
         
         form_group.setLayout(form_layout)
         
-        # Save button
+        # Buttons
+        button_layout = QHBoxLayout()
+
         save_button = QPushButton("💾 Save Configuration")
         save_button.clicked.connect(self.save_config_from_gui)
-        
+
+        github_upload_button = QPushButton("🚀 Upload to GitHub")
+        github_upload_button.clicked.connect(self.upload_to_github)
+        github_upload_button.setToolTip("Upload current changes to GitHub repository")
+
+        button_layout.addWidget(save_button)
+        button_layout.addWidget(github_upload_button)
+        button_layout.addStretch()
+
         # Status display
         self.config_status = QTextEdit()
         self.config_status.setMaximumHeight(100)
         self.config_status.setReadOnly(True)
-        
+
         layout.addWidget(form_group)
-        layout.addWidget(save_button)
+        layout.addLayout(button_layout)
         layout.addWidget(QLabel("Configuration Status:"))
         layout.addWidget(self.config_status)
         
@@ -429,8 +439,14 @@ class IntegratedPostcardLister(QWidget):
         self.view_images_btn.clicked.connect(self.view_processed_images)
         self.view_images_btn.setEnabled(False)
 
+        self.upload_results_btn = QPushButton("🚀 Upload to GitHub")
+        self.upload_results_btn.clicked.connect(self.upload_to_github)
+        self.upload_results_btn.setToolTip("Upload processing results and catalog to GitHub")
+        self.upload_results_btn.setEnabled(False)
+
         export_layout.addWidget(self.export_csv_btn)
         export_layout.addWidget(self.view_images_btn)
+        export_layout.addWidget(self.upload_results_btn)
         export_layout.addStretch()
 
         export_group.setLayout(export_layout)
@@ -619,6 +635,7 @@ class IntegratedPostcardLister(QWidget):
         self.process_btn.setEnabled(True)
         self.export_csv_btn.setEnabled(True)
         self.view_images_btn.setEnabled(True)
+        self.upload_results_btn.setEnabled(True)
 
         # Display results
         self.display_results(results)
@@ -741,6 +758,50 @@ class IntegratedPostcardLister(QWidget):
             self.log_message(f"📁 Opened output directory: {output_dir}")
         else:
             self.log_message("❌ Output directory not found")
+
+    def upload_to_github(self):
+        """Upload current changes to GitHub repository"""
+        try:
+            self.log_message("🚀 Starting GitHub upload...")
+
+            # Save current configuration first
+            self.save_config_from_gui()
+
+            # Use the existing GitHub upload script
+            import subprocess
+            import os
+
+            # Check if upload script exists
+            upload_script = "github_upload_clean.sh"
+            if not os.path.exists(upload_script):
+                self.log_message("❌ GitHub upload script not found")
+                return
+
+            # Create commit message with timestamp
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            commit_message = f"GUI Upload: Configuration and catalog updates - {timestamp}"
+
+            # Run the upload script
+            self.log_message("📤 Executing GitHub upload script...")
+            result = subprocess.run(
+                ["/bin/bash", upload_script, commit_message],
+                capture_output=True,
+                text=True,
+                cwd=os.getcwd()
+            )
+
+            if result.returncode == 0:
+                self.log_message("✅ GitHub upload successful!")
+                self.log_message("🌐 Changes pushed to repository")
+            else:
+                self.log_message(f"❌ GitHub upload failed: {result.stderr}")
+                self.log_message(f"📋 Output: {result.stdout}")
+
+        except Exception as e:
+            self.log_message(f"❌ GitHub upload error: {str(e)}")
+            import traceback
+            self.log_message(f"📋 Details: {traceback.format_exc()}")
 
     def log_message(self, message):
         """Add message to process log"""

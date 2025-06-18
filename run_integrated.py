@@ -14,8 +14,8 @@ def check_dependencies():
         ('PyQt5', 'PyQt5.QtWidgets'),
         ('pandas', 'pandas'),
         ('PIL', 'PIL'),
-        ('boto3', 'boto3'),
-        ('openai', 'openai')
+        ('openai', 'openai'),
+        ('requests', 'requests')  # For GitHub API
     ]
     
     missing = []
@@ -39,8 +39,10 @@ def check_core_modules():
     """Check if core modules are available"""
     core_modules = [
         'core.vision_handler',
-        'core.image_processor', 
-        'core.aws_uploader',
+        'core.enhanced_vision_handler',
+        'core.multi_llm_analyzer',
+        'core.image_processor',
+        'core.github_catalog',  # Replaces aws_uploader
         'core.csv_generator',
         'core.utils'
     ]
@@ -63,20 +65,36 @@ def check_core_modules():
     return True
 
 def main():
-    """Main launcher function"""
-    print("🚀 Postcard Lister - Integrated Version")
+    """Main launcher function with PRF self-healing"""
+    print("🚀 GitHub Catalog System - Self-Healing Launcher")
     print("=" * 50)
-    
+
+    # Try self-healing launcher first
+    print("\n🔧 Attempting PRF self-healing startup...")
+    try:
+        from run_integrated_self_heal import main as self_heal_main
+        print("✅ Self-healing launcher available - using PRF-compliant startup")
+        self_heal_main()
+        return
+    except ImportError:
+        print("⚠️ Self-healing launcher not found - using basic startup")
+    except Exception as e:
+        print(f"⚠️ Self-healing startup failed: {e}")
+        print("🔄 Falling back to basic startup...")
+
+    # Fallback to basic checks
     print("\n📋 Checking dependencies...")
     if not check_dependencies():
+        print("\n🔧 TIP: For automatic dependency installation, run:")
+        print("  python3 run_integrated_self_heal.py")
         sys.exit(1)
-    
+
     print("\n📋 Checking core modules...")
     if not check_core_modules():
         sys.exit(1)
-    
+
     print("\n🎯 Starting integrated application...")
-    
+
     try:
         from app_integrated import main as app_main
         app_main()

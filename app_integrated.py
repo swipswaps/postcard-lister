@@ -142,34 +142,27 @@ class GitHubUploadWorker(QThread):
             self.progress_updated.emit(f"📝 Logging to: {combined_log}")
             self.progress_updated.emit("📤 Executing GitHub upload script with verbatim capture...")
 
-            # Create enhanced script that captures ALL output with tee pattern
+            # Create simplified script that just runs the upload with better output capture
             enhanced_script = f"""#!/bin/bash
-# Enhanced GitHub upload with verbatim message capture
+# Simplified GitHub upload with verbatim capture (no duplication)
 # Based on PRF pattern: exec 2> >(stdbuf -oL ts | tee "$LOG_MASKED" | tee >(cat >&4))
 
 set -euo pipefail
 
-# Setup logging with tee pattern for verbatim capture
-exec 1> >(stdbuf -oL ts | tee "{stdout_log}" | tee >(cat >&1))
-exec 2> >(stdbuf -oL ts | tee "{stderr_log}" | tee >(cat >&2))
+echo "🔧 VERBATIM SYSTEM MESSAGE CAPTURE ACTIVE"
+echo "📅 Timestamp: $(date)"
+echo "📁 Working Directory: $(pwd)"
+echo "🔧 Git Status:"
+git status --porcelain || echo "Git status failed"
 
-# Also create combined log
-exec 3> >(stdbuf -oL ts | tee "{combined_log}")
+echo "📤 Executing original upload script..."
 
-echo "🔧 VERBATIM SYSTEM MESSAGE CAPTURE ACTIVE" >&3
-echo "📅 Timestamp: $(date)" >&3
-echo "📁 Working Directory: $(pwd)" >&3
-echo "🔧 Git Status:" >&3
-git status --porcelain >&3 2>&3 || echo "Git status failed" >&3
+# Execute the original upload script directly with output capture
+bash "{upload_script}" "{self.commit_message}"
 
-echo "📤 Executing original upload script..." >&3
-
-# Execute the original upload script with full output capture
-bash "{upload_script}" "{self.commit_message}" 2>&3 1>&3
-
-echo "✅ Upload script execution completed" >&3
-echo "📊 Final git status:" >&3
-git status --porcelain >&3 2>&3 || echo "Final git status failed" >&3
+echo "✅ Upload script execution completed"
+echo "📊 Final git status:"
+git status --porcelain || echo "Final git status failed"
 """
 
             # Write enhanced script to temp file
@@ -252,7 +245,7 @@ git status --porcelain >&3 2>&3 || echo "Final git status failed" >&3
                     time.sleep(poll_interval)
                     elapsed += poll_interval
 
-                    # Show network activity status
+                    # Show network activity status with smart duplicate suppression
                     if elapsed % 10 == 0:  # Every 10 seconds
                         self.progress_updated.emit(f"🌐 Network activity in progress... ({elapsed}s elapsed)")
                         self.network_status.emit(f"📡 Monitoring network operations... ({elapsed}s)")
@@ -265,21 +258,33 @@ git status --porcelain >&3 2>&3 || echo "Final git status failed" >&3
                                 github_connections = [line for line in netstat_result.stdout.split('\n')
                                                     if 'github.com' in line or ':443' in line or ':22' in line]
                                 if github_connections:
-                                    self.network_status.emit(f"🔗 Active GitHub connections: {len(github_connections)}")
-                                    for conn in github_connections[:3]:  # Show first 3 connections
-                                        self.verbatim_output.emit(f"🔗 NETSTAT: {conn.strip()}")
+                                    # Only show connection count changes or every 30 seconds
+                                    if not hasattr(self, 'last_connection_count') or \
+                                       self.last_connection_count != len(github_connections) or \
+                                       elapsed % 30 == 0:
+                                        self.network_status.emit(f"🔗 Active GitHub connections: {len(github_connections)}")
+                                        self.last_connection_count = len(github_connections)
+
+                                        # Show unique connections (avoid duplicates)
+                                        unique_connections = list(set(conn.strip() for conn in github_connections[:3]))
+                                        for conn in unique_connections:
+                                            if conn:  # Only non-empty connections
+                                                self.verbatim_output.emit(f"🔗 NETSTAT: {conn}")
                                 else:
                                     self.network_status.emit("📡 No active GitHub connections visible")
                         except Exception as e:
                             self.network_status.emit(f"📡 Network monitoring error: {e}")
 
-                        # Check process status
+                        # Check process status (only show changes)
                         try:
                             if hasattr(process, 'pid'):
                                 ps_result = sp.run(['ps', '-p', str(process.pid), '-o', 'pid,ppid,state,comm'],
                                                  capture_output=True, text=True, timeout=2)
                                 if ps_result.returncode == 0:
-                                    self.verbatim_output.emit(f"🔍 PROCESS: {ps_result.stdout.strip()}")
+                                    current_ps = ps_result.stdout.strip()
+                                    if not hasattr(self, 'last_ps_output') or self.last_ps_output != current_ps:
+                                        self.verbatim_output.emit(f"🔍 PROCESS: {current_ps}")
+                                        self.last_ps_output = current_ps
                         except:
                             pass
 
@@ -1129,10 +1134,19 @@ class IntegratedPostcardLister(QWidget):
         # Don't log this as it would spam the log, just update status
 
     def upload_finished(self, success, message):
-        """Handle upload completion"""
+        """Handle upload completion with duplicate analysis"""
         # Stop progress timer
         if hasattr(self, 'upload_progress_timer'):
             self.upload_progress_timer.stop()
+
+        # Flush any pending duplicates
+        if hasattr(self, 'verbatim_last_message') and self.verbatim_duplicate_count > 0:
+            duplicate_display = f"{self.verbatim_last_message} [×{self.verbatim_duplicate_count + 1}]"
+            if hasattr(self, 'verbatim_log'):
+                self.verbatim_log.append(duplicate_display)
+
+        # Show duplicate summary
+        self.show_duplicate_summary()
 
         # Log final result
         self.log_message(message)
@@ -1158,7 +1172,7 @@ class IntegratedPostcardLister(QWidget):
         print(message)  # Also print to console
 
     def log_verbatim(self, message):
-        """Add verbatim system message to dedicated log"""
+        """Add verbatim system message with smart duplicate detection and quantification"""
         if hasattr(self, 'verbatim_log'):
             # Strip our prefixes for cleaner verbatim display
             clean_message = message
@@ -1167,15 +1181,61 @@ class IntegratedPostcardLister(QWidget):
             elif message.startswith("🚨 STDERR: "):
                 clean_message = message[11:]  # Remove "🚨 STDERR: "
 
-            self.verbatim_log.append(clean_message)
+            # Initialize duplicate tracking if not exists
+            if not hasattr(self, 'verbatim_duplicates'):
+                self.verbatim_duplicates = {}
+                self.verbatim_last_message = None
+                self.verbatim_duplicate_count = 0
 
-            # Also log to main log for completeness
-            self.process_log.append(message)
+            # Check for duplicates
+            if clean_message == self.verbatim_last_message:
+                # This is a duplicate
+                self.verbatim_duplicate_count += 1
+                # Don't display yet, wait to see if more duplicates come
+                return
+            else:
+                # Different message - flush any pending duplicates first
+                if self.verbatim_last_message and self.verbatim_duplicate_count > 0:
+                    # Show the previous message with count
+                    duplicate_display = f"{self.verbatim_last_message} [×{self.verbatim_duplicate_count + 1}]"
+                    self.verbatim_log.append(duplicate_display)
+                    self.process_log.append(f"📤 STDOUT: {duplicate_display}")
+
+                    # Track in summary
+                    if self.verbatim_last_message not in self.verbatim_duplicates:
+                        self.verbatim_duplicates[self.verbatim_last_message] = 0
+                    self.verbatim_duplicates[self.verbatim_last_message] += self.verbatim_duplicate_count
+
+                # Display the new message
+                self.verbatim_log.append(clean_message)
+                self.process_log.append(message)
+
+                # Update tracking
+                self.verbatim_last_message = clean_message
+                self.verbatim_duplicate_count = 0
         else:
             # Fallback to main log if verbatim log not available
             self.process_log.append(message)
 
         print(message)  # Also print to console
+
+    def show_duplicate_summary(self):
+        """Show summary of duplicate messages detected"""
+        if hasattr(self, 'verbatim_duplicates') and self.verbatim_duplicates:
+            total_duplicates = sum(self.verbatim_duplicates.values())
+            unique_messages = len(self.verbatim_duplicates)
+
+            summary = f"📊 DUPLICATE SUMMARY: {total_duplicates} duplicate messages across {unique_messages} unique patterns"
+            self.log_message(summary)
+
+            # Show top duplicates
+            sorted_dupes = sorted(self.verbatim_duplicates.items(), key=lambda x: x[1], reverse=True)
+            for i, (msg, count) in enumerate(sorted_dupes[:5]):  # Top 5
+                short_msg = msg[:60] + "..." if len(msg) > 60 else msg
+                self.log_message(f"  {i+1}. [{count+1}×] {short_msg}")
+
+            if len(sorted_dupes) > 5:
+                self.log_message(f"  ... and {len(sorted_dupes) - 5} more duplicate patterns")
 
 ################################################################################
 # MAIN ENTRY POINT

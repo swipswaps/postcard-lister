@@ -179,13 +179,95 @@ git status --porcelain >&3 2>&3 || echo "Final git status failed" >&3
                 # Make enhanced script executable
                 os.chmod(enhanced_script_path, 0o755)
 
-                # Run enhanced script with full verbatim capture
-                result = subprocess.run(
+                # Run enhanced script with REAL-TIME verbatim capture (Fedora Linux)
+                self.progress_updated.emit("🔄 Starting real-time output capture on Fedora...")
+
+                import threading
+                import queue
+                import time
+
+                # Create queues for real-time output
+                stdout_queue = queue.Queue()
+                stderr_queue = queue.Queue()
+
+                def read_output(pipe, output_queue, prefix):
+                    """Read output from pipe and put in queue with real-time emission"""
+                    try:
+                        for line in iter(pipe.readline, ''):
+                            if line:
+                                line = line.rstrip()
+                                output_queue.put(line)
+                                # Emit immediately for real-time display
+                                self.progress_updated.emit(f"{prefix} {line}")
+                        pipe.close()
+                    except Exception as e:
+                        self.progress_updated.emit(f"⚠️ Error reading {prefix}: {e}")
+
+                # Start process with separate pipes
+                process = subprocess.Popen(
                     ["/bin/bash", enhanced_script_path],
-                    capture_output=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                     text=True,
                     cwd=os.getcwd(),
-                    timeout=120  # 2 minute timeout
+                    bufsize=1,  # Line buffered
+                    universal_newlines=True
+                )
+
+                # Start reader threads for real-time output
+                stdout_thread = threading.Thread(
+                    target=read_output,
+                    args=(process.stdout, stdout_queue, "📤 STDOUT:")
+                )
+                stderr_thread = threading.Thread(
+                    target=read_output,
+                    args=(process.stderr, stderr_queue, "🚨 STDERR:")
+                )
+
+                stdout_thread.daemon = True
+                stderr_thread.daemon = True
+                stdout_thread.start()
+                stderr_thread.start()
+
+                # Wait for process to complete
+                self.progress_updated.emit("⏳ Waiting for upload script to complete...")
+                process.wait()
+
+                # Wait for reader threads to finish
+                stdout_thread.join(timeout=5)
+                stderr_thread.join(timeout=5)
+
+                # Collect all output from queues
+                stdout_lines = []
+                stderr_lines = []
+
+                # Get all stdout
+                while not stdout_queue.empty():
+                    try:
+                        line = stdout_queue.get_nowait()
+                        stdout_lines.append(line)
+                    except queue.Empty:
+                        break
+
+                # Get all stderr
+                while not stderr_queue.empty():
+                    try:
+                        line = stderr_queue.get_nowait()
+                        stderr_lines.append(line)
+                    except queue.Empty:
+                        break
+
+                # Create result object for compatibility
+                class ProcessResult:
+                    def __init__(self, returncode, stdout, stderr):
+                        self.returncode = returncode
+                        self.stdout = stdout
+                        self.stderr = stderr
+
+                result = ProcessResult(
+                    process.returncode,
+                    '\n'.join(stdout_lines),
+                    '\n'.join(stderr_lines)
                 )
 
                 # Read verbatim logs

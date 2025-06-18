@@ -37,3 +37,18 @@ output/
 *.log
 68507cb0-f268-8008-898e-60359398f149*
 
+
+# Comprehensive secret prevention
+*.txt
+.env*
+*token*
+*key*
+*secret*
+*password*
+*credentials*
+*api*key*
+68507cb0-f268-8008-898e-60359398f149*
+*chat*
+*.log
+logs/
+

@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (
     QTextEdit, QProgressBar, QGroupBox, QCheckBox, QSpinBox,
     QComboBox, QRadioButton, QButtonGroup
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QPixmap, QFont
 
 # Import our sophisticated core modules
@@ -97,8 +97,158 @@ class ConfigManager:
         self.save_config()
 
 ################################################################################
-# PROCESSING WORKER THREAD
+# WORKER THREADS
 ################################################################################
+
+class GitHubUploadWorker(QThread):
+    """Background thread for GitHub uploads without blocking GUI"""
+
+    # Signals for communicating with GUI
+    progress_updated = pyqtSignal(str)  # status message
+    upload_complete = pyqtSignal(bool, str)  # success, message
+
+    def __init__(self, commit_message):
+        super().__init__()
+        self.commit_message = commit_message
+
+    def run(self):
+        """Run GitHub upload with verbatim system/error/application message capture"""
+        try:
+            import subprocess
+            import os
+            import tempfile
+            from datetime import datetime
+
+            self.progress_updated.emit("🔍 Checking upload script...")
+
+            # Check if upload script exists
+            upload_script = "github_upload_clean.sh"
+            if not os.path.exists(upload_script):
+                self.upload_complete.emit(False, f"❌ Upload script not found: {upload_script}")
+                return
+
+            # Create timestamped log files for verbatim capture
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            log_dir = "logs"
+            if not os.path.exists(log_dir):
+                os.makedirs(log_dir)
+
+            stdout_log = f"{log_dir}/github_upload_stdout_{timestamp}.log"
+            stderr_log = f"{log_dir}/github_upload_stderr_{timestamp}.log"
+            combined_log = f"{log_dir}/github_upload_combined_{timestamp}.log"
+
+            self.progress_updated.emit(f"📝 Logging to: {combined_log}")
+            self.progress_updated.emit("📤 Executing GitHub upload script with verbatim capture...")
+
+            # Create enhanced script that captures ALL output with tee pattern
+            enhanced_script = f"""#!/bin/bash
+# Enhanced GitHub upload with verbatim message capture
+# Based on PRF pattern: exec 2> >(stdbuf -oL ts | tee "$LOG_MASKED" | tee >(cat >&4))
+
+set -euo pipefail
+
+# Setup logging with tee pattern for verbatim capture
+exec 1> >(stdbuf -oL ts | tee "{stdout_log}" | tee >(cat >&1))
+exec 2> >(stdbuf -oL ts | tee "{stderr_log}" | tee >(cat >&2))
+
+# Also create combined log
+exec 3> >(stdbuf -oL ts | tee "{combined_log}")
+
+echo "🔧 VERBATIM SYSTEM MESSAGE CAPTURE ACTIVE" >&3
+echo "📅 Timestamp: $(date)" >&3
+echo "📁 Working Directory: $(pwd)" >&3
+echo "🔧 Git Status:" >&3
+git status --porcelain >&3 2>&3 || echo "Git status failed" >&3
+
+echo "📤 Executing original upload script..." >&3
+
+# Execute the original upload script with full output capture
+bash "{upload_script}" "{self.commit_message}" 2>&3 1>&3
+
+echo "✅ Upload script execution completed" >&3
+echo "📊 Final git status:" >&3
+git status --porcelain >&3 2>&3 || echo "Final git status failed" >&3
+"""
+
+            # Write enhanced script to temp file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+                f.write(enhanced_script)
+                enhanced_script_path = f.name
+
+            try:
+                # Make enhanced script executable
+                os.chmod(enhanced_script_path, 0o755)
+
+                # Run enhanced script with full verbatim capture
+                result = subprocess.run(
+                    ["/bin/bash", enhanced_script_path],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd(),
+                    timeout=120  # 2 minute timeout
+                )
+
+                # Read verbatim logs
+                stdout_content = ""
+                stderr_content = ""
+                combined_content = ""
+
+                try:
+                    if os.path.exists(stdout_log):
+                        with open(stdout_log, 'r') as f:
+                            stdout_content = f.read().strip()
+                    if os.path.exists(stderr_log):
+                        with open(stderr_log, 'r') as f:
+                            stderr_content = f.read().strip()
+                    if os.path.exists(combined_log):
+                        with open(combined_log, 'r') as f:
+                            combined_content = f.read().strip()
+                except Exception as e:
+                    self.progress_updated.emit(f"⚠️ Log read error: {e}")
+
+                # Emit verbatim system messages
+                if result.returncode == 0:
+                    success_msg = "✅ GitHub upload successful!"
+
+                    if combined_content:
+                        success_msg += f"\n\n📋 VERBATIM SYSTEM MESSAGES:\n{combined_content}"
+                    if stdout_content:
+                        success_msg += f"\n\n📤 STDOUT CAPTURE:\n{stdout_content}"
+                    if stderr_content:
+                        success_msg += f"\n\n🚨 STDERR CAPTURE:\n{stderr_content}"
+                    if result.stdout.strip():
+                        success_msg += f"\n\n🔧 SUBPROCESS STDOUT:\n{result.stdout.strip()}"
+                    if result.stderr.strip():
+                        success_msg += f"\n\n⚠️ SUBPROCESS STDERR:\n{result.stderr.strip()}"
+
+                    self.upload_complete.emit(True, success_msg)
+                else:
+                    error_msg = f"❌ GitHub upload failed (exit code: {result.returncode})"
+
+                    if combined_content:
+                        error_msg += f"\n\n📋 VERBATIM SYSTEM MESSAGES:\n{combined_content}"
+                    if stderr_content:
+                        error_msg += f"\n\n🚨 STDERR CAPTURE:\n{stderr_content}"
+                    if stdout_content:
+                        error_msg += f"\n\n📤 STDOUT CAPTURE:\n{stdout_content}"
+                    if result.stderr.strip():
+                        error_msg += f"\n\n⚠️ SUBPROCESS STDERR:\n{result.stderr.strip()}"
+                    if result.stdout.strip():
+                        error_msg += f"\n\n🔧 SUBPROCESS STDOUT:\n{result.stdout.strip()}"
+
+                    self.upload_complete.emit(False, error_msg)
+
+            finally:
+                # Cleanup temp script
+                try:
+                    os.unlink(enhanced_script_path)
+                except:
+                    pass
+
+        except subprocess.TimeoutExpired:
+            self.upload_complete.emit(False, "⏰ Upload timed out after 2 minutes")
+        except Exception as e:
+            self.upload_complete.emit(False, f"❌ Upload error: {str(e)}")
 
 class PostcardProcessor(QThread):
     """Background thread for processing postcards without blocking GUI"""
@@ -760,48 +910,81 @@ class IntegratedPostcardLister(QWidget):
             self.log_message("❌ Output directory not found")
 
     def upload_to_github(self):
-        """Upload current changes to GitHub repository"""
+        """Upload current changes to GitHub repository with comprehensive feedback"""
         try:
             self.log_message("🚀 Starting GitHub upload...")
+            self.log_message("⏱️ This may take 30-60 seconds, please wait...")
 
             # Save current configuration first
+            self.log_message("💾 Saving current configuration...")
             self.save_config_from_gui()
-
-            # Use the existing GitHub upload script
-            import subprocess
-            import os
-
-            # Check if upload script exists
-            upload_script = "github_upload_clean.sh"
-            if not os.path.exists(upload_script):
-                self.log_message("❌ GitHub upload script not found")
-                return
+            self.log_message("✅ Configuration saved")
 
             # Create commit message with timestamp
             from datetime import datetime
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             commit_message = f"GUI Upload: Configuration and catalog updates - {timestamp}"
+            self.log_message(f"📝 Commit message: {commit_message}")
 
-            # Run the upload script
-            self.log_message("📤 Executing GitHub upload script...")
-            result = subprocess.run(
-                ["/bin/bash", upload_script, commit_message],
-                capture_output=True,
-                text=True,
-                cwd=os.getcwd()
-            )
+            # Disable upload buttons during upload
+            sender = self.sender()
+            if sender:
+                sender.setEnabled(False)
+                sender.setText("⏳ Uploading...")
 
-            if result.returncode == 0:
-                self.log_message("✅ GitHub upload successful!")
-                self.log_message("🌐 Changes pushed to repository")
-            else:
-                self.log_message(f"❌ GitHub upload failed: {result.stderr}")
-                self.log_message(f"📋 Output: {result.stdout}")
+            # Start upload worker thread
+            self.upload_worker = GitHubUploadWorker(commit_message)
+            self.upload_worker.progress_updated.connect(self.log_message)
+            self.upload_worker.upload_complete.connect(self.upload_finished)
+            self.upload_worker.start()
+
+            # Start progress timer for user feedback
+            self.upload_progress_timer = QTimer()
+            self.upload_progress_timer.timeout.connect(self.update_upload_progress)
+            self.upload_progress_dots = 0
+            self.upload_progress_timer.start(1000)  # Update every second
 
         except Exception as e:
             self.log_message(f"❌ GitHub upload error: {str(e)}")
             import traceback
             self.log_message(f"📋 Details: {traceback.format_exc()}")
+            self.log_message("🔧 Check that git and GitHub CLI are properly configured")
+
+            # Re-enable button on error
+            sender = self.sender()
+            if sender:
+                sender.setEnabled(True)
+                sender.setText("🚀 Upload to GitHub")
+
+    def update_upload_progress(self):
+        """Update upload progress indicator"""
+        self.upload_progress_dots = (self.upload_progress_dots + 1) % 4
+        progress_msg = f"⏳ Upload in progress{'.' * self.upload_progress_dots}{' ' * (3 - self.upload_progress_dots)}"
+        # Don't log this as it would spam the log, just update status
+
+    def upload_finished(self, success, message):
+        """Handle upload completion"""
+        # Stop progress timer
+        if hasattr(self, 'upload_progress_timer'):
+            self.upload_progress_timer.stop()
+
+        # Log final result
+        self.log_message(message)
+
+        if success:
+            self.log_message("🌐 Changes pushed to repository")
+            self.log_message("✅ Upload completed successfully!")
+        else:
+            self.log_message("🔧 Check git configuration and network connection")
+            self.log_message("💡 Try again or check the upload script manually")
+
+        # Re-enable upload buttons
+        for button_text in ["🚀 Upload to GitHub"]:
+            # Find and re-enable upload buttons
+            for widget in self.findChildren(QPushButton):
+                if "Upload to GitHub" in widget.text():
+                    widget.setEnabled(True)
+                    widget.setText("🚀 Upload to GitHub")
 
     def log_message(self, message):
         """Add message to process log"""

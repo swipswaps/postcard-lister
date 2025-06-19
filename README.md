@@ -1,87 +1,124 @@
-# Postcard Lister
+# 🌞 Solar Panel Catalog - Material UI Edition
 
-A Python application for processing and listing postcards on eBay. For a guide on usage, view this YouTube video:
+A modern web application for processing and cataloging solar panels with automated GitHub integration. Features a Material UI interface with real-time WebSocket communication and proven GitHub upload functionality.
 
-If you would like to hire me for 1 on 1 help with setup and usage, please contact me at support@paulcarl.com
+## 🚀 Quick Start
 
-## Setup
-
-1. Clone the repository:
+**One-command startup** (recommended):
 ```bash
-git clone https://github.com/paulcarl/postcard-lister.git
+./start.sh
+```
+
+This automatically:
+- ✅ Opens two terminal windows (WebSocket server + React frontend)
+- ✅ Starts both services with proper configuration
+- ✅ Opens your browser to http://localhost:3001
+- ✅ Provides full GitHub upload functionality
+
+## 🔧 Manual Setup (if needed)
+
+1. **Clone and setup**:
+```bash
+git clone https://github.com/swipswaps/postcard-lister.git
 cd postcard-lister
 ```
 
-2. Create a virtual environment and install dependencies:
+2. **Install dependencies**:
 ```bash
+# Frontend dependencies
+cd frontend && npm install && cd ..
+
+# Backend dependencies (if using Python features)
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-3. Copy the settings template and configure your settings:
+3. **Configure GitHub token** (for upload functionality):
 ```bash
-cp config/settings.template.json config/settings.json
-```
-Edit `config/settings.json` with your:
-- AWS credentials
-- OpenAI API key
-- Default price
-- Branding image path
-- Other settings
-
-## Usage
-
-Run the application:
-```bash
-python app.py
+# Create .env.local file with your GitHub token
+echo "GH_TOKEN=your_github_token_here" > .env.local
 ```
 
-## Features
+## 🎯 Manual Startup (alternative)
 
-- Process postcard images (front and back)
-- Upload images to AWS S3
-- Generate eBay-compatible CSV listings
-- AI-powered metadata extraction
-- Custom HTML description templates
-- Configurable default price
-- Custom branding image support
+If `./start.sh` doesn't work, start manually:
 
-## Requirements
+**Terminal 1 - WebSocket Server:**
+```bash
+cd websocket && python3 github_cli_server.py
+```
 
-- Python 3.8+
-- AWS S3 account
-- OpenAI API key
-- Required Python packages (see requirements.txt)
+**Terminal 2 - React Frontend:**
+```bash
+cd frontend && PORT=3001 npm start
+```
 
-GNU GENERAL PUBLIC LICENSE
+**Then open:** http://localhost:3001
 
-### PRF Compliance Checkpoint
-Timestamp: 2025-06-17T162515Z
+## ✨ Features
 
-### PRF Compliance Checkpoint
-Timestamp: 2025-06-17T163502Z
+- 🎨 **Material UI Interface** - Modern, responsive web design
+- 🔄 **Real-time WebSocket** - Live communication between frontend and backend
+- 📤 **GitHub Integration** - Direct upload to GitHub with full network visibility
+- 🌞 **Solar Panel Processing** - Specialized for solar panel catalog management
+- 📱 **Android-style Layout** - Mobile-friendly interface design
+- 🔍 **Verbatim Logging** - Complete system message capture for troubleshooting
+- ⚡ **Simple GitHub Push** - Use `./simple_github_push.sh "message"` for direct uploads
 
-### PRF Compliance Checkpoint
-Timestamp: 2025-06-17T164013Z
+## 🛠️ GitHub Upload
 
-### PRF Compliance Checkpoint
-Timestamp: 2025-06-17T164300Z
+**Simple command-line upload:**
+```bash
+./simple_github_push.sh "Your commit message"
+```
 
-### PRF Compliance Checkpoint
-Timestamp: 2025-06-17T164655Z
+This script provides:
+- ✅ Full network message visibility
+- ✅ Proven git commands (no over-engineering)
+- ✅ Complete success/failure feedback
+- ✅ Automatic token management
 
-### PRF Compliance Checkpoint
-Timestamp: 2025-06-17T164916Z
+## 📋 System Requirements
 
-### PRF Compliance Checkpoint
-Timestamp: 2025-06-17T180801Z
+- **Node.js** 16+ (for React frontend)
+- **Python** 3.8+ (for WebSocket server)
+- **Git** (for GitHub integration)
+- **Modern browser** (Chrome, Firefox, Safari, Edge)
 
-### PRF Compliance Checkpoint
-Timestamp: 2025-06-17T183628Z
+## 🌐 Architecture
 
-### PRF Compliance Checkpoint
-Timestamp: 2025-06-17T184630Z
+- **Frontend**: React with Material UI (port 3001)
+- **Backend**: Python WebSocket server (port 8081)
+- **GitHub**: Direct integration with proven git commands
+- **Logging**: Complete verbatim system message capture
 
-### PRF Compliance Checkpoint
-Timestamp: 2025-06-17T185939Z
+## 🆘 Troubleshooting
+
+**Port conflicts:**
+```bash
+# Kill existing processes
+pkill -f github_cli_server
+pkill -f "react-scripts"
+```
+
+**GitHub upload issues:**
+- Check `.env.local` has valid `GH_TOKEN`
+- Use `./simple_github_push.sh` for direct upload with full error visibility
+- All network messages are shown for easy debugging
+
+**Browser connection issues:**
+- Ensure both servers are running (check terminal outputs)
+- Try refreshing browser or clearing cache
+- Check http://localhost:3001 and ws://localhost:8081
+
+## 📄 License
+
+GNU GENERAL PUBLIC LICENSE v3.0
+
+## 🎯 Status
+
+✅ **Working System** - Material UI interface with proven GitHub integration
+✅ **Simple Startup** - One command: `./start.sh`
+✅ **Full Network Visibility** - All system messages displayed for troubleshooting
+✅ **Proven Approach** - Uses standard git commands, no over-engineering

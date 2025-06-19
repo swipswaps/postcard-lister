@@ -1,0 +1,111 @@
+# Ignore personal settings
+config/settings.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+
+# Project specific
+output/
+
+# Logs
+*.log 
+# Prevent accidental secret exposure
+*.txt
+.env
+.env.local
+.env.production
+.env.development
+*token*
+*key*
+*secret*
+*password*
+*credentials*
+
+# Chat logs and temporary files
+*chat*
+*log*
+*.log
+68507cb0-f268-8008-898e-60359398f149*
+
+
+# Comprehensive secret prevention
+*.txt
+.env*
+*token*
+*key*
+*secret*
+*password*
+*credentials*
+*api*key*
+68507cb0-f268-8008-898e-60359398f149*
+*chat*
+*.log
+logs/
+
+
+# Security - API Keys and Tokens
+*.env
+*.env.local
+.env.*
+**/config/settings.json
+**/*api_key*
+**/*token*
+**/*secret*
+
+# GitHub Catalog
+catalog/temp/
+catalog/processing/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Archive
+archive/
+
+# Chat logs (prevent future exposure)
+68507cb0*.txt
+**/68507cb0*.txt

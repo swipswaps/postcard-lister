@@ -1,0 +1,15 @@
+{
+    "openai_api_key": "YOUR_OPENAI_API_KEY",
+    "github_token": "YOUR_GITHUB_TOKEN",
+    "github_owner": "YOUR_GITHUB_USERNAME",
+    "github_repo": "postcard-lister",
+    "use_multi_llm": true,
+    "use_github_catalog": true,
+    "default_product_type": "auto",
+    "store_category_id": "",
+    "background_color": "#000000",
+    "shipping_policy": "YOUR_SHIPPING_POLICY",
+    "return_policy": "YOUR_RETURN_POLICY",
+    "payment_policy": "YOUR_PAYMENT_POLICY",
+    "zip_code": "YOUR_ZIP_CODE"
+}

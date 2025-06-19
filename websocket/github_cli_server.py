@@ -161,7 +161,7 @@ show_network_progress "GitHub upload"
     export GIT_CURL_VERBOSE=1
 
     # Run with REAL git progress capture only
-    bash "github_upload_clean.sh" "{commit_message}" 2>&3 1>&3
+    bash "../simple_github_push.sh" "{commit_message}" 2>&3 1>&3
     RESULT=$?
 
     echo "[COMPLETE] GitHub upload finished with exit code: $RESULT" >&3
